@@ -26,8 +26,11 @@ library(tidyverse)
 
 1. _Plan Your Trip_ Imagine playing chess with only one piece by always selecting your next move at random from all possible legal moves. This is something a drunken chessmaster might do! Write a function to simulate this process for each of the "Back Row" pieces (rook, knight, bishop, queen, and king), starting at an arbitrary location and allowing for an arbitrary number of moves.
 
-
 ```{r}
+#Note that all of this is designed for only one piece on the board and will fail for multiple pieces without being edited to work with multiple pieces.
+library(rchess)
+library(rvest)
+library(stringr)
 chss <- Chess$new()
 chss$clear()
 chss$moves(verbose = TRUE)
@@ -51,13 +54,26 @@ selector_move <- function(){
   new_square <- str_match(move_choice, "[abcdefgh][12345678]")
   piece_changer <- chss$get(new_square)
   color_change <- ""
-  
-  chss$put(piece_changer$type, chss$turn(), new_square)
+  if(piece_changer$color == "w"){
+    color_change <- "b"
+  }
+  else{
+    color_change <- "w"
+  }
+  chss$put(piece_changer$type, color_change, new_square)
   plot(chss)
 }
-selector_place("b")
-selector_move()
+#Purpose: Allows for several moves all at once
+#Input: number of moves desired to be done for numeric n
+#Output: A chess board after the moves are done being made
+multi_mover <- function(n){
+  replicate(n, selector_move())
+  plot(chss)
+}
+selector_place("n")
+multi_mover(9)
 ```
+
 
 
 
@@ -68,34 +84,47 @@ selector_move()
 4. _Visit Some Friends_ Consider two drunken chessmasters playing against each other. They both start with a king and a queen, in the traditional starting positions. They each will take turns making moves at random from all possible legal moves. The players are allowed to "attack" the other player's pieces, and the game stops when a player attacks the other player's King. Simulate this process. (Since these chessmasters are presumably drunk, you may ignore the conditions and rules that place a King into "check".)
 
 ```{r, warning=F}
+#Create a vector to hold how many moves each game takes
 long <<- c()
 
+#Create function to play one full game with just kings and queens
 kq_move <- function(){
+  #create new game
   game <- Chess$new()
+  #clear board
   game$clear()
+  #put pieces on the board
   game$put("k", "w", "e1")
   game$put("q", "w", "d1")
   game$put("k", "b", "e8")
   game$put("q", "b", "d8")
   repeat {
+    #check if game is in check, if it is, king is only piece that can move
     if(game$in_check()==T) {
       type <- "k"
     }
+    #randomly pick queen or king to move
     else if(game$turn()=="w") {
       type <- sample(whitekq, 1)
     } else {
       type <- sample(blackkq,1)
     }
+    #See all possible moves
     move_table <- game$moves(verbose = TRUE)
+    #Narrow moves to just the piece randomly selected
     move_table <- move_table %>% filter(piece == type)
+    #If that piece cannot move, change piece so someone moves
     if(nrow(move_table)==0) {
       type = "q"
       move_table <- game$moves(verbose = TRUE)
       move_table <- move_table %>% filter(piece == type)
     }
+    #Randomly choose a move for the random piece
     location <- move_table$san
     move <- sample(location, 1)
+    #Make the move randomly chosen
     game$move(move)
+    #If a piece gets taken, take that piece out so it cannot be chosen to        move
     if(grepl("x", move, fixed = TRUE)==T) {
       if((move_table$color=="w")==T) {
         blackkq <- c("k")
@@ -104,6 +133,7 @@ kq_move <- function(){
         whitekq <- c("k")
       }
     }
+    #Once the game is over break from the loop
     if(game$game_over()==T) {
       break
     }
