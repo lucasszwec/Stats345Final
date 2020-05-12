@@ -21,6 +21,7 @@ library(rchess)
 library(rvest)
 library(stringr)
 library(tidyverse)
+library(gridExtra)
 ```
 
 
@@ -84,9 +85,6 @@ multi_mover(9)
 4. _Visit Some Friends_ Consider two drunken chessmasters playing against each other. They both start with a king and a queen, in the traditional starting positions. They each will take turns making moves at random from all possible legal moves. The players are allowed to "attack" the other player's pieces, and the game stops when a player attacks the other player's King. Simulate this process. (Since these chessmasters are presumably drunk, you may ignore the conditions and rules that place a King into "check".)
 
 ```{r, warning=F}
-#Create a vector to hold how many moves each game takes
-long <<- c()
-
 #Create function to play one full game with just kings and queens
 kq_move <- function(){
   #create new game
@@ -141,19 +139,79 @@ kq_move <- function(){
   history <- game$history(verbose = T)
   number <- max(history$number_move)
   long <<- c(long,number)
+  # print(move_table)
   # print(game$history(verbose = T))
-  # plot(game)
-  
+  # print(game)
+  end_table <- game$history(verbose=T)
+  blackK <- end_table %>% filter(color=="b")
+  blackK <- blackK %>% filter(piece=="k")
+  blackK <- blackK %>% filter(number_move==max(number_move))
+  posBK <- blackK$to
+  bK <<- c(bK, posBK)
+  whiteK <- end_table %>% filter(color=="w")
+  whiteK <- whiteK %>% filter(piece=="k")
+  whiteK <- whiteK %>% filter(number_move==max(number_move))
+  posWK <- whiteK$to
+  wK <<- c(wK, posWK)
+  # print(end_table)
+  if(ncol(end_table)==8) {
+    queenB <- end_table %>% filter(is.na(captured)==F)
+    queenB <- queenB %>% filter(color=="w")
+    if(length(queenB)==0) {
+      blackQ <- end_table %>% filter(color=="b")
+      blackQ <- blackQ %>% filter(piece=="q")
+      blackQ <- blackQ %>% filter(number_move==max(number_move))
+      posBQ <- blackQ$to
+      bQ <<- c(bQ, posBQ)
+    }
+    else {
+    posBQ <- "z100"
+    bQ <<- c(bQ,posBQ)
+    }
+  }
+  else {
+    blackQ <- end_table %>% filter(color=="b")
+    blackQ <- blackQ %>% filter(piece=="q")
+    blackQ <- blackQ %>% filter(number_move==max(number_move))
+    posBQ <- blackQ$to
+    bQ <<- c(bQ, posBQ)
+  }
+  if(ncol(end_table)==8) {
+    queenW <- end_table %>% filter(is.na(captured)==F)
+    queenW <- queenW %>% filter(color=="b")
+    if(length(queenW)==0) {
+      whiteQ <- end_table %>% filter(color=="w")
+      whiteQ <- whiteQ %>% filter(piece=="q")
+      whiteQ <- whiteQ %>% filter(number_move==max(number_move))
+      posWQ <- whiteQ$to
+      wQ <<- c(wQ, posWQ) 
+    }
+    else {
+      posWQ <- "z100"
+      wQ <<- c(wQ,posWQ)
+    }
+  }
+  else {
+    whiteQ <- end_table %>% filter(color=="w")
+    whiteQ <- whiteQ %>% filter(piece=="q")
+    whiteQ <- whiteQ %>% filter(number_move==max(number_move))
+    posWQ <- whiteQ$to
+    wQ <<- c(wQ, posWQ) 
+  }
 }
 
+#Create a vector to hold how many moves each game takes
+long <<- c()
+wK <<- c()
+wQ <<- c()
+bK <<- c()
+bQ <<- c()
 whitekq <- c("k","q")
 blackkq <- c("k","q")
 # kq_move()
-
-
+ 
 n <- 1000
 replicate(n, kq_move(), simplify=FALSE)
-
 
 # game <- Chess$new()
 # game$clear()
@@ -170,5 +228,99 @@ replicate(n, kq_move(), simplify=FALSE)
 hist <- ggplot(data = NULL,aes(long)) + geom_histogram(bins = 10,fill="blue",color="black") + labs(title="Number of Moves for the Game to End",x="Number of Moves",y="Count")
 hist
 ```
+
+```{r}
+gridbK <- paste0(rep(letters[1:8], each=8), rep(1:8, 8))
+totalbK <- c()
+for(i in gridbK[1:64]) {
+  totalbK[i] <- sum(bK==i)
+}
+mbK <- matrix(c(totalbK),nrow = 8,ncol = 8)
+dfbK <- expand.grid(x=1:ncol(mbK),y=1:nrow(mbK))
+dfbK$val <- mbK[as.matrix(dfbK[c('y','x')])]
+
+gridbK <- ggplot(dfbK, aes(x=x, y=y, label=val)) +
+  geom_tile(fill='transparent', colour = 'black') +
+  geom_text(size = 5) + 
+  scale_x_discrete(name ="", limits=c("a","b","c","d","e","f","g","h")) + 
+  scale_y_discrete(name="",limits=c(1:8)) +
+  labs(title="Finishing Spot for the Black King")
+gridbK
+```
+
+```{r}
+gridwK <- paste0(rep(letters[1:8], each=8), rep(1:8, 8))
+totalwK <- c()
+for(i in gridwK[1:64]) {
+  totalwK[i] <- sum(wK==i)
+}
+mwK <- matrix(c(totalwK),nrow = 8,ncol = 8)
+dfwK <- expand.grid(x=1:ncol(mwK),y=1:nrow(mwK))
+dfwK$val <- mwK[as.matrix(dfwK[c('y','x')])]
+
+gridwK <- ggplot(dfwK, aes(x=x, y=y, label=val)) +
+  geom_tile(fill='transparent', colour = 'black') +
+  geom_text(size = 5) + 
+  scale_x_discrete(name ="", limits=c("a","b","c","d","e","f","g","h")) + 
+  scale_y_discrete(name="",limits=c(1:8)) +
+  labs(title="Finishing Spot for the White King")
+gridwK
+```
+
+```{r}
+gridbQ <- paste0(rep(letters[1:8], each=8), rep(1:8, 8))
+totalbQ <- c()
+for(i in gridbQ[1:64]) {
+  totalbQ[i] <- sum(bQ==i)
+}
+mbQ <- matrix(c(totalbQ),nrow = 8,ncol = 8)
+dfbQ <- expand.grid(x=1:ncol(mbQ),y=1:nrow(mbQ))
+dfbQ$val <- mbQ[as.matrix(dfbQ[c('y','x')])]
+
+gridbQ <- ggplot(dfbQ, aes(x=x, y=y, label=val)) +
+  geom_tile(fill='transparent', colour = 'black') +
+  geom_text(size = 5) + 
+  scale_x_discrete(name ="", limits=c("a","b","c","d","e","f","g","h")) + 
+  scale_y_discrete(name="",limits=c(1:8)) +
+  labs(title="Finishing Spot for the Black Queen")
+gridbQ
+```
+
+```{r}
+gridwQ <- paste0(rep(letters[1:8], each=8), rep(1:8, 8))
+totalwQ <- c()
+for(i in gridwQ[1:64]) {
+  totalwQ[i] <- sum(wQ==i)
+}
+mwQ <- matrix(c(totalwQ),nrow = 8,ncol = 8)
+dfwQ <- expand.grid(x=1:ncol(mwQ),y=1:nrow(mwQ))
+dfwQ$val <- mwQ[as.matrix(dfwQ[c('y','x')])]
+
+gridwQ <- ggplot(dfwQ, aes(x=x, y=y, label=val)) +
+  geom_tile(fill='transparent', colour = 'black') +
+  geom_text(size = 5) + 
+  scale_x_discrete(name ="", limits=c("a","b","c","d","e","f","g","h")) + 
+  scale_y_discrete(name="",limits=c(1:8)) +
+  labs(title="Finishing Spot for the White Queen")
+gridwQ
+```
+
+```{r,message=F}
+totalAll <- dfbK$val + dfwK$val + dfbQ$val + dfwQ$val
+
+mAll <- matrix(c(totalAll),nrow = 8,ncol = 8)
+dfAll <- expand.grid(x=1:ncol(mAll),y=1:nrow(mAll))
+dfAll$val <- mAll[as.matrix(dfAll[c('y','x')])]
+
+gridAll <- ggplot(dfAll, aes(x=x, y=y, label=val)) +
+  geom_tile(fill='transparent', colour = 'black') +
+  geom_text(size = 5) + 
+  scale_x_discrete(name ="", limits=c("a","b","c","d","e","f","g","h")) + 
+  scale_y_discrete(name="",limits=c(1:8)) +
+  labs(title="Finishing Spot for all the Pieces")
+gridAll
+```
+
+
 
 
